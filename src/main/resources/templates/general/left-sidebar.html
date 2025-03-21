@@ -154,7 +154,18 @@
                         <li><a th:href="${home + 'employee/email-template/create'}">Create Template</a></li>
                     </ul>
                 </li>
+                <li class="nav-small-cap">--- Data</li>
+                    <li>
+                        <a class="has-arrow waves-effect waves-dark" href="javascript:void(0)">
+                            <i class="fas fa-cogs"></i>
+                            <span class="hide-menu">Reset</span>
+                        </a>
+                        <ul class="collapse">
+                            <li><a th:href="${home + 'reset/'}">Reset page</a></li>
+                        </ul>
+                </li>
             </ul>
+
             <ul id="sidebarnav" th:if="${#authorization.expression('hasRole(''ROLE_CUSTOMER'')')}">
                 <li class="user-pro">
                     <a class="has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false">
@@ -210,13 +221,6 @@
                     </a>
                 </li>
 
-                <li class="nav-small-cap">--- reset</li>
-                <li>
-                    <a class="waves-effect waves-dark" th:href="${home + 'customer/my-contracts'}">
-                        <i class="fas fa-file-contract"></i>
-                        <span class="hide-menu"></span>
-                    </a>
-                </li>
             </ul>
         </nav>
         <!-- End Sidebar navigation -->
