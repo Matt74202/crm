@@ -116,6 +116,12 @@
                                         <option th:each="customer : ${customers}" th:text="${customer.name}" th:value="${customer.customerId}"></option>
                                     </select>
                                 </div>
+
+                                <label class="m-t-20" for="amount">Amount:</label>
+                                <div class="input-group">
+                                    <input type="number" id="amount" name="amount" step="0.01" class="form-control" placeholder="Enter amount">
+                                </div>
+                                
                                 <label class="m-t-20"><i class="ti-link"></i> Attachment</label>
                                 <div class="form-group">
                                     <div class="dropzone" id="my-dropzone"></div>

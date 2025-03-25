@@ -2,6 +2,7 @@ package site.easy.to.build.crm.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
@@ -16,6 +17,8 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import site.easy.to.build.crm.entity.*;
 import site.easy.to.build.crm.entity.settings.LeadEmailSettings;
 import site.easy.to.build.crm.google.model.calendar.EventDisplay;
@@ -27,9 +30,12 @@ import site.easy.to.build.crm.google.service.drive.GoogleDriveApiService;
 import site.easy.to.build.crm.google.service.gmail.GoogleGmailApiService;
 import site.easy.to.build.crm.service.customer.CustomerService;
 import site.easy.to.build.crm.service.drive.GoogleDriveFileService;
+import site.easy.to.build.crm.service.expense.ExpenseService;
 import site.easy.to.build.crm.service.file.FileService;
 import site.easy.to.build.crm.service.lead.LeadActionService;
 import site.easy.to.build.crm.service.lead.LeadService;
+import site.easy.to.build.crm.service.budget.BudgetService;
+import site.easy.to.build.crm.service.rate.RateService;
 import site.easy.to.build.crm.service.settings.LeadEmailSettingsService;
 import site.easy.to.build.crm.service.user.UserService;
 import site.easy.to.build.crm.util.*;
@@ -37,11 +43,13 @@ import site.easy.to.build.crm.util.*;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 
 @Controller
 @RequestMapping("/employee/lead")
@@ -60,12 +68,17 @@ public class LeadController {
     private final LeadEmailSettingsService leadEmailSettingsService;
     private final GoogleGmailApiService googleGmailApiService;
     private final EntityManager entityManager;
+    private final ExpenseService expenseService;
+    private final BudgetService budgetService;
+    private final RateService rateService;
 
     @Autowired
-    public LeadController(LeadService leadService, AuthenticationUtils authenticationUtils, UserService userService, CustomerService customerService,
-                          LeadActionService leadActionService, GoogleCalendarApiService googleCalendarApiService, FileService fileService,
+    public LeadController(LeadService leadService, AuthenticationUtils authenticationUtils, UserService userService, 
+                          CustomerService customerService, LeadActionService leadActionService, 
+                          GoogleCalendarApiService googleCalendarApiService, FileService fileService,
                           GoogleDriveApiService googleDriveApiService, GoogleDriveFileService googleDriveFileService, FileUtil fileUtil,
-                          LeadEmailSettingsService leadEmailSettingsService, GoogleGmailApiService googleGmailApiService, EntityManager entityManager) {
+                          LeadEmailSettingsService leadEmailSettingsService, GoogleGmailApiService googleGmailApiService, 
+                          EntityManager entityManager, ExpenseService expenseService, BudgetService budgetService, RateService rateService) {
         this.leadService = leadService;
         this.authenticationUtils = authenticationUtils;
         this.userService = userService;
@@ -79,6 +92,9 @@ public class LeadController {
         this.leadEmailSettingsService = leadEmailSettingsService;
         this.googleGmailApiService = googleGmailApiService;
         this.entityManager = entityManager;
+        this.expenseService= expenseService;
+        this.budgetService= budgetService;
+        this.rateService= rateService;
     }
 
     @GetMapping("/show/{id}")
@@ -168,7 +184,10 @@ public class LeadController {
     public String createLead(@ModelAttribute("lead") @Validated Lead lead, BindingResult bindingResult,
                              @RequestParam("customerId") int customerId, @RequestParam("employeeId") int employeeId,
                              Authentication authentication, @RequestParam("allFiles")@Nullable String files,
-                             @RequestParam("folderId") @Nullable String folderId, Model model) throws JsonProcessingException {
+                             @RequestParam("folderId") @Nullable String folderId, Model model,
+                             @RequestParam("amount") double amountDouble, RedirectAttributes redirectAttributes,
+                             @RequestParam(value = "confirm", required = false) Boolean confirm)
+                             throws JsonProcessingException {
 
         int userId = authenticationUtils.getLoggedInUserId(authentication);
         User manager = userService.findById(userId);
@@ -208,8 +227,32 @@ public class LeadController {
             }
         }
 
+        Expense expense = new Expense();
+        expense.setTicket(null);
+        expense.setAmount(BigDecimal.valueOf(amountDouble));
+        expense.setCustomer(customer);
+
+        if (isBudgetExceeded(customerId, expense.getAmount())) {
+            model.addAttribute("lead", lead);
+            model.addAttribute("customerId", customerId);
+            model.addAttribute("employeeId", employeeId);
+            model.addAttribute("amount", amountDouble);
+            model.addAttribute("files", files);
+            model.addAttribute("folderId", folderId);
+            return "lead/confirm";
+        }
+
         Lead createdLead = leadService.save(lead);
+        expense.setLead(createdLead);
         fileUtil.saveFiles(allFiles, createdLead);
+        expenseService.save(expense);
+
+
+        if (isRateExceeded(customerId)){
+            System.out.println("fay");
+            redirectAttributes.addFlashAttribute("alertMessage", "The rate for the budget has been exceeded");
+        }
+        redirectAttributes.addFlashAttribute("");
 
         if (lead.getGoogleDrive() != null) {
             fileUtil.saveGoogleDriveFiles(authentication, allFiles, folderId, createdLead);
@@ -223,6 +266,78 @@ public class LeadController {
         }
         return "redirect:/employee/lead/assigned-leads";
     }
+
+
+    @PostMapping("/confirm")
+    public String confirmLead(@ModelAttribute("lead") @Validated Lead lead, BindingResult bindingResult,
+                             @RequestParam("customerId") int customerId, @RequestParam("employeeId") int employeeId,
+                             Authentication authentication, @RequestParam("allFiles")@Nullable String files,
+                             @RequestParam("folderId") @Nullable String folderId, @RequestParam("amount") double amountDouble, 
+                             RedirectAttributes redirectAttributes, Model model) throws JsonProcessingException {
+
+        if (bindingResult.hasErrors()) {
+            return "lead/confirm";
+        }
+
+        int userId = authenticationUtils.getLoggedInUserId(authentication);
+        User manager = userService.findById(userId);
+        if(manager.isInactiveUser()) {
+            return "error/account-inactive";
+        }
+
+        User employee = userService.findById(employeeId);
+        Customer customer = customerService.findByCustomerId(customerId);
+
+        lead.setCustomer(customer);
+        lead.setEmployee(employee);
+        lead.setManager(manager);
+        lead.setGoogleDriveFolderId(folderId);
+        lead.setCreatedAt(LocalDateTime.now());
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        List<Attachment> allFiles = objectMapper.readValue(files, new TypeReference<List<Attachment>>() {
+        });
+
+        if (!(authentication instanceof UsernamePasswordAuthenticationToken) && googleDriveApiService != null) {
+            OAuthUser oAuthUser = authenticationUtils.getOAuthUserFromAuthentication(authentication);
+            try {
+                if (folderId != null && !folderId.isEmpty()) {
+                    googleDriveApiService.checkFolderExists(oAuthUser, folderId);
+                }
+            } catch (IOException | GeneralSecurityException e) {
+                return "error/500";
+            }
+        }
+
+        Expense expense = new Expense();
+        expense.setTicket(null);
+        expense.setAmount(BigDecimal.valueOf(amountDouble));
+        expense.setCustomer(customer);
+
+        Lead createdLead = leadService.save(lead);
+        expense.setLead(createdLead);
+        fileUtil.saveFiles(allFiles, createdLead);
+        expenseService.save(expense);
+
+        if (isRateExceeded(customerId)){
+            System.out.println("fay");
+            redirectAttributes.addFlashAttribute("alertMessage", "The rate for the budget has been exceeded");
+        }
+        redirectAttributes.addFlashAttribute("");
+
+        if (lead.getGoogleDrive() != null) {
+            fileUtil.saveGoogleDriveFiles(authentication, allFiles, folderId, createdLead);
+        }
+
+        if (lead.getStatus().equals("meeting-to-schedule")) {
+            return "redirect:/employee/calendar/create-event?leadId=" + lead.getLeadId();
+        }
+        if(AuthorizationUtil.hasRole(authentication, "ROLE_MANAGER")) {
+            return "redirect:/employee/lead/created-leads";
+        }
+        return "redirect:/employee/lead/assigned-leads";
+    }
+    
 
     @GetMapping("/update/{id}")
     public String showUpdatingForm(Model model, @PathVariable("id") int id, Authentication authentication) {
@@ -611,5 +726,43 @@ public class LeadController {
         model.addAttribute("attachments", attachments);
         model.addAttribute("folders", folders);
         model.addAttribute("hasGoogleDriveAccess", hasGoogleDriveAccess);
+    }
+
+    public boolean isRateExceeded(int customerId) {
+        BigDecimal sumBudget = budgetService.sumAmountByCustomerId(customerId);
+        BigDecimal sumExpense = expenseService.sumAmountByCustomerId(customerId);
+        
+        System.out.println("sumBudget = " + sumBudget);
+        System.out.println("sumExpense = " + sumExpense);
+        System.out.println("customerId = " + customerId);
+
+        Rate rate = rateService.getLast();
+        BigDecimal rateValue = rate.getRate();
+        
+        BigDecimal maxAllowedExpense = sumBudget.multiply(rateValue).divide(BigDecimal.valueOf(100)); // sumBudget * rateValue / 100
+        
+        if (sumExpense.compareTo(maxAllowedExpense) > 0) {
+            return true; 
+        }
+        
+        return false;
+    }
+
+    public boolean isBudgetExceeded(int customerId, BigDecimal amount) {
+        BigDecimal sumBudget = budgetService.sumAmountByCustomerId(customerId);
+        BigDecimal sumExpense = expenseService.sumAmountByCustomerId(customerId);
+    
+        if (sumExpense == null) {
+            sumExpense = BigDecimal.ZERO;
+        }
+    
+        BigDecimal totalExpense = sumExpense.add(amount);
+    
+        System.out.println("sumBudget = " + sumBudget);
+        System.out.println("sumExpense (existantes) = " + sumExpense);
+        System.out.println("totalExpense (existantes + actuelle) = " + totalExpense);
+        System.out.println("customerId = " + customerId);
+    
+        return totalExpense.compareTo(sumBudget) > 0;
     }
 }
