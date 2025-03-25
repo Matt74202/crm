@@ -52,7 +52,7 @@ public class HomePageController {
     @GetMapping("/")
     public String showHomePage(Model model, Authentication authentication) {
         int userId = authenticationUtils.getLoggedInUserId(authentication);
-        WeatherData weatherData = weatherService.getWeatherData("cairo");
+        WeatherData weatherData = weatherService.getWeatherData("Antananarivo");
 
         List<Ticket> tickets;
         List<Lead> leads;

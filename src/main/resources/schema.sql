@@ -496,6 +496,38 @@ CREATE TABLE IF NOT EXISTS `google_drive_file` (
 ) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+
+CREATE TABLE IF NOT EXISTS `budget` (
+    `budget_id` int unsigned NOT NULL AUTO_INCREMENT,
+    `customer_id` int unsigned DEFAULT NULL,
+    `amount` decimal(10,2) DEFAULT NULL,
+    `budget_date` datetime DEFAULT NULL,
+    PRIMARY KEY (`budget_id`),  -- Ajoute la clé primaire sur budget_id
+    CONSTRAINT `customer_id_budget` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`customer_id`)
+);
+
+
+CREATE TABLE IF NOT EXISTS `expense` (
+    `expense_id` int unsigned NOT NULL AUTO_INCREMENT,
+    `customer_id` int unsigned DEFAULT NULL,
+    `amount` decimal(10,2) DEFAULT NULL,
+    `ticket_id` int unsigned DEFAULT NULL,
+    `lead_id` int unsigned DEFAULT NULL,
+    PRIMARY KEY (`expense_id`),  
+    CONSTRAINT `customer_id_expense` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`customer_id`),
+    CONSTRAINT `ticket_id_expense` FOREIGN KEY (`ticket_id`) REFERENCES `trigger_ticket` (`ticket_id`),
+    CONSTRAINT `lead_id_expense` FOREIGN KEY (`lead_id`) REFERENCES `trigger_lead` (`lead_id`)
+);
+
+
+CREATE TABLE IF NOT EXISTS `rate` (
+    `rate_id` int unsigned NOT NULL AUTO_INCREMENT,
+    `rate` decimal(10,2) DEFAULT NULL,
+    `inserted_at` datetime DEFAULT NULL,
+    PRIMARY KEY (`rate_id`)
+);
+
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
