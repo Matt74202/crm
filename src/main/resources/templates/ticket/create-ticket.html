@@ -65,11 +65,14 @@
             <!-- ============================================================== -->
             <!-- Start Page Content -->
             <!-- ============================================================== -->
+            <div th:if="${alertMessage}" th:text="${alertMessage}" class="alert alert-warning"></div>
+
             <div class="row">
                 <div class="col-lg-12">
                     <div class="card">
                         <div class="card-body">
                             <h4 class="card-title">Create New Ticket</h4>
+
                             <form th:object="${ticket}" th:action="@{/employee/ticket/create-ticket}" method="post">
 
                                 <label class="m-t-20" for="subject">Subject:</label>
@@ -134,6 +137,11 @@
                                     <select name="customerId" id="customerId" class="form-control">
                                         <option th:each="customer : ${customers}" th:text="${customer.name}" th:value="${customer.customerId}"></option>
                                     </select>
+                                </div>
+
+                                <label class="m-t-20" for="amount">Amount:</label>
+                                <div class="input-group">
+                                    <input type="number" id="amount" name="amount" step="0.01" class="form-control" placeholder="Enter amount">
                                 </div>
 
                                 <button type="submit" class="btn btn-primary m-t-20">Create ticket</button>

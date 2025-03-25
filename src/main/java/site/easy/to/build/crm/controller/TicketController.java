@@ -15,15 +15,20 @@ import site.easy.to.build.crm.entity.*;
 import site.easy.to.build.crm.entity.settings.TicketEmailSettings;
 import site.easy.to.build.crm.google.service.acess.GoogleAccessService;
 import site.easy.to.build.crm.google.service.gmail.GoogleGmailApiService;
+import site.easy.to.build.crm.service.budget.BudgetService;
 import site.easy.to.build.crm.service.customer.CustomerService;
+import site.easy.to.build.crm.service.expense.ExpenseService;
 import site.easy.to.build.crm.service.settings.TicketEmailSettingsService;
 import site.easy.to.build.crm.service.ticket.TicketService;
+import site.easy.to.build.crm.service.rate.RateService;
 import site.easy.to.build.crm.service.user.UserService;
 import site.easy.to.build.crm.util.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.security.GeneralSecurityException;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -41,11 +46,16 @@ public class TicketController {
     private final TicketEmailSettingsService ticketEmailSettingsService;
     private final GoogleGmailApiService googleGmailApiService;
     private final EntityManager entityManager;
+    private final ExpenseService expenseService;
+    private final BudgetService budgetService;
+    private final RateService rateService;
 
 
     @Autowired
-    public TicketController(TicketService ticketService, AuthenticationUtils authenticationUtils, UserService userService, CustomerService customerService,
-                            TicketEmailSettingsService ticketEmailSettingsService, GoogleGmailApiService googleGmailApiService, EntityManager entityManager) {
+    public TicketController(TicketService ticketService, AuthenticationUtils authenticationUtils, UserService userService, 
+                            CustomerService customerService, TicketEmailSettingsService ticketEmailSettingsService, 
+                            GoogleGmailApiService googleGmailApiService, EntityManager entityManager, ExpenseService expenseService,
+                            BudgetService budgetService, RateService rateService) {
         this.ticketService = ticketService;
         this.authenticationUtils = authenticationUtils;
         this.userService = userService;
@@ -53,6 +63,9 @@ public class TicketController {
         this.ticketEmailSettingsService = ticketEmailSettingsService;
         this.googleGmailApiService = googleGmailApiService;
         this.entityManager = entityManager;
+        this.expenseService= expenseService;
+        this.budgetService= budgetService;
+        this.rateService= rateService;
     }
 
     @GetMapping("/show-ticket/{id}")
@@ -123,9 +136,12 @@ public class TicketController {
     }
 
     @PostMapping("/create-ticket")
-    public String createTicket(@ModelAttribute("ticket") @Validated Ticket ticket, BindingResult bindingResult, @RequestParam("customerId") int customerId,
+    public String createTicket(@ModelAttribute("ticket") @Validated Ticket ticket, BindingResult bindingResult,
+                               @RequestParam("customerId") int customerId,
                                @RequestParam Map<String, String> formParams, Model model,
-                               @RequestParam("employeeId") int employeeId, Authentication authentication) {
+                               @RequestParam("employeeId") int employeeId, Authentication authentication,
+                               @RequestParam("amount") double amountDouble, RedirectAttributes redirectAttributes,
+                               @RequestParam(value = "confirm", required = false) Boolean confirm) {
 
         int userId = authenticationUtils.getLoggedInUserId(authentication);
         User manager = userService.findById(userId);
@@ -167,10 +183,40 @@ public class TicketController {
         ticket.setCustomer(customer);
         ticket.setManager(manager);
         ticket.setEmployee(employee);
+
         ticket.setCreatedAt(LocalDateTime.now());
 
-        ticketService.save(ticket);
+        
+        Expense expense = new Expense();
+        expense.setTicket(ticket);
+        expense.setLead(null);
+        expense.setAmount(BigDecimal.valueOf(amountDouble));
+        expense.setCustomer(customer);
 
+
+        if (confirm != null && confirm) {           //apres confirmation, enregistrer le ticket qmm
+            ticketService.save(ticket);
+            expenseService.save(expense);
+            if (isRateExceeded(customerId)) {
+                redirectAttributes.addFlashAttribute("alertMessage", "The budget rate has been exceeded");
+            }
+            return "redirect:/employee/ticket/assigned-tickets";
+        }
+
+        if (isBudgetExceeded(customerId, expense.getAmount())) {        //afficher page de confirmation
+            System.out.println("Mihoatra tompoko");
+            model.addAttribute("ticket", ticket);
+            model.addAttribute("customerId", customerId);
+            model.addAttribute("employeeId", employeeId);
+            model.addAttribute("amount", amountDouble);
+            return "ticket/confirm"; 
+        }
+
+        ticketService.save(ticket);             // pas de confirmation et de budget depasse
+        expenseService.save(expense);
+        if (isRateExceeded(customerId)) {
+            redirectAttributes.addFlashAttribute("alertMessage", "The budget rate has been exceeded");
+        }
         return "redirect:/employee/ticket/assigned-tickets";
     }
 
@@ -373,4 +419,43 @@ public class TicketController {
             }
         }
     }
+
+    public boolean isRateExceeded(int customerId) {
+        BigDecimal sumBudget = budgetService.sumAmountByCustomerId(customerId);
+        BigDecimal sumExpense = expenseService.sumAmountByCustomerId(customerId);
+        
+        System.out.println("sumBudget = " + sumBudget);
+        System.out.println("sumExpense = " + sumExpense);
+        System.out.println("customerId = " + customerId);
+
+        Rate rate = rateService.getLast();
+        BigDecimal rateValue = rate.getRate();
+        
+        BigDecimal maxAllowedExpense = sumBudget.multiply(rateValue).divide(BigDecimal.valueOf(100)); // sumBudget * rateValue / 100
+        
+        if (sumExpense.compareTo(maxAllowedExpense) > 0) {
+            return true; 
+        }
+        
+        return false;
+    }
+
+    public boolean isBudgetExceeded(int customerId, BigDecimal amount) {
+        BigDecimal sumBudget = budgetService.sumAmountByCustomerId(customerId);
+        BigDecimal sumExpense = expenseService.sumAmountByCustomerId(customerId);
+    
+        if (sumExpense == null) {
+            sumExpense = BigDecimal.ZERO;
+        }
+    
+        BigDecimal totalExpense = sumExpense.add(amount);
+    
+        System.out.println("sumBudget = " + sumBudget);
+        System.out.println("sumExpense (existantes) = " + sumExpense);
+        System.out.println("totalExpense (existantes + actuelle) = " + totalExpense);
+        System.out.println("customerId = " + customerId);
+    
+        return totalExpense.compareTo(sumBudget) > 0;
+    }
+    
 }
