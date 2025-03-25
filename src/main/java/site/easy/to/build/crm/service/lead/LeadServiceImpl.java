@@ -7,6 +7,7 @@ import site.easy.to.build.crm.entity.Customer;
 import site.easy.to.build.crm.repository.LeadRepository;
 import site.easy.to.build.crm.entity.Lead;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -93,5 +94,15 @@ public class LeadServiceImpl implements LeadService {
     @Override
     public long countByCustomerId(int customerId) {
         return leadRepository.countByCustomerCustomerId(customerId);
+    }
+
+    @Override 
+    public BigDecimal getSumAmount(){
+        return leadRepository.getSumAmount();
+    }
+
+    @Override
+    public BigDecimal sumAmountByCustomerId(Integer customerId){
+        return leadRepository.sumAmountByCustomerId(customerId);
     }
 }

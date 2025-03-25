@@ -154,7 +154,40 @@
                         <li><a th:href="${home + 'employee/email-template/create'}">Create Template</a></li>
                     </ul>
                 </li>
+                <li class="nav-small-cap">--- Data</li>
+                    <li>
+                        <a class="has-arrow waves-effect waves-dark" href="javascript:void(0)">
+                            <i class="fas fa-cogs"></i>
+                            <span class="hide-menu">Reset & Import</span>
+                        </a>
+                        <ul class="collapse">
+                            <li><a th:href="${home + 'reset/'}">Reset page</a></li>
+                            <li><a th:href="${home + 'import/'}">Import page</a></li>
+                        </ul>
+                </li>
+                <li class="nav-small-cap">--- Budget & Expenses</li>
+                    <li>
+                        <a class="has-arrow waves-effect waves-dark" href="javascript:void(0)">
+                            <i class="fas fa-cogs"></i>
+                            <span class="hide-menu">Budget</span>
+                        </a>
+                        <ul class="collapse">
+                            <li><a th:href="${home + 'manager/budget/create-budget'}">Create Budget</a></li>
+                            <li><a th:href="${home + 'manager/budget/all-budget'}">All budgets</a></li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a class="has-arrow waves-effect waves-dark" href="javascript:void(0)">
+                            <i class="fas fa-cogs"></i>
+                            <span class="hide-menu">Expenses</span>
+                        </a>
+                        <ul class="collapse">
+                            <li><a th:href="${home + 'reset/'}">Create Budget</a></li>
+                            <li><a th:href="${home + 'import/'}">Import page</a></li>
+                        </ul>
+                    </li>
             </ul>
+
             <ul id="sidebarnav" th:if="${#authorization.expression('hasRole(''ROLE_CUSTOMER'')')}">
                 <li class="user-pro">
                     <a class="has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false">
@@ -209,6 +242,7 @@
                         <span class="hide-menu">My Contracts</span>
                     </a>
                 </li>
+
             </ul>
         </nav>
         <!-- End Sidebar navigation -->

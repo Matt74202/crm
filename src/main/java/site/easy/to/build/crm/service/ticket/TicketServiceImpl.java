@@ -4,18 +4,23 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import site.easy.to.build.crm.entity.Customer;
+import site.easy.to.build.crm.entity.Expense;
+import site.easy.to.build.crm.repository.ExpenseRepository;
 import site.easy.to.build.crm.repository.TicketRepository;
 import site.easy.to.build.crm.entity.Ticket;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
 public class TicketServiceImpl implements TicketService{
 
     private final TicketRepository ticketRepository;
+    private final ExpenseRepository expenseRepository;
 
-    public TicketServiceImpl(TicketRepository ticketRepository) {
+    public TicketServiceImpl(TicketRepository ticketRepository, ExpenseRepository expenseRepository) {
         this.ticketRepository = ticketRepository;
+        this.expenseRepository= expenseRepository;
     }
 
     @Override
@@ -89,5 +94,27 @@ public class TicketServiceImpl implements TicketService{
     @Override
     public void deleteAllByCustomer(Customer customer) {
         ticketRepository.deleteAllByCustomer(customer);
+    }
+
+    @Override
+    public long count(){
+        return ticketRepository.count();
+    }
+
+    @Override
+    public BigDecimal getSumAmount(){
+        return ticketRepository.getSumAmount();
+    }
+
+    @Override
+    public BigDecimal sumAmountByCustomerId(Integer customerId){
+        return ticketRepository.sumAmountByCustomerId(customerId);
+    }
+
+    @Override
+    public Expense updateTicketExpense(int ticketId, BigDecimal amount){
+        Expense expense= expenseRepository.findByTicketTicketId(ticketId);
+        expense.setAmount(amount);
+        return expense;
     }
 }

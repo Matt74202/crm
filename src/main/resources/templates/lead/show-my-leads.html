@@ -75,6 +75,7 @@
                     <div class="card">
                         <div class="card-body">
                             <h4 class="card-title">Leads</h4>
+                            <div th:if="${alertMessage}" th:text="${alertMessage}" class="alert alert-warning"></div>
                             <div class="table-responsive m-t-40">
                                 <table id="config-table" class="table display table-bordered table-striped no-wrap">
                                     <thead>

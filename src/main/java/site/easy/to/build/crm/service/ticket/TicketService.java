@@ -1,8 +1,10 @@
 package site.easy.to.build.crm.service.ticket;
 
 import site.easy.to.build.crm.entity.Customer;
+import site.easy.to.build.crm.entity.Expense;
 import site.easy.to.build.crm.entity.Ticket;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface TicketService {
@@ -33,4 +35,13 @@ public interface TicketService {
     long countByCustomerCustomerId(int customerId);
 
     void deleteAllByCustomer(Customer customer);
+
+    long count();
+
+    BigDecimal getSumAmount();
+
+    public BigDecimal sumAmountByCustomerId(Integer customerId);
+
+
+    public Expense updateTicketExpense(int id, BigDecimal amount);
 }
