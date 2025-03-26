@@ -57,4 +57,9 @@ public class CustomerServiceImpl implements CustomerService {
     public long countByUserId(int userId) {
         return customerRepository.countByUserId(userId);
     }
+
+    @Override
+    public long count(){
+        return customerRepository.count();
+    }
 }
