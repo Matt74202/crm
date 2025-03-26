@@ -77,6 +77,13 @@
                     <div class="card">
                         <div class="card-body">
                             <h4 class="card-title">Importing data</h4>
+
+                                <div th:if="${successMessage}" class="alert alert-success" role="alert">
+                                    <strong>Succès !</strong> <span th:text="${successMessage}"></span>
+                                </div>
+                                <div th:if="${errorMessage}" class="alert alert-danger" role="alert">
+                                    <strong>Erreur !</strong> <span th:text="${errorMessage}"></span>
+                                </div>
                             
                             <div class="row">
                                 <div class="col-md-8 offset-md-2">
@@ -86,11 +93,25 @@
                                             
                                             <div id="customers-section">
                                                 
-                                                <form th:action="@{/import/employee}" method="post" enctype="multipart/form-data">
+                                                <form th:action="@{/import/all}" method="post" enctype="multipart/form-data">
                                                     <div class="fallback">
                                                         <div class="custom-file mb-3">
-                                                            <input type="file" class="custom-file-input" id="customFile" name="filePath" accept=".csv" required>
-                                                            <label class="custom-file-label" for="customFile">Import employees data</label>
+                                                            <input type="file" class="custom-file-input" id="customFile" name="customerCsv" accept=".csv" required>
+                                                            <label class="custom-file-label" for="customFile">Import customer data</label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="fallback">
+                                                        <div class="custom-file mb-3">
+                                                            <input type="file" class="custom-file-input" id="customFile" name="budgetCsv" accept=".csv" required>
+                                                            <label class="custom-file-label" for="customFile">Import budget data</label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="fallback">
+                                                        <div class="custom-file mb-3">
+                                                            <input type="file" class="custom-file-input" id="customFile" name="expenseCsv" accept=".csv" required>
+                                                            <label class="custom-file-label" for="customFile">Import ticket/lead data</label>
                                                         </div>
                                                     </div>
                                                     
